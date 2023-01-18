@@ -10,7 +10,7 @@
 
 #if LV_USE_DEMO_WIDGETS
 
-#if LV_USE_BUILTIN_MALLOC && LV_MEM_SIZE < (38ul * 1024ul)
+#if LV_MEM_CUSTOM == 0 && LV_MEM_SIZE < (38ul * 1024ul)
     #error Insufficient memory for lv_demo_widgets. Please set LV_MEM_SIZE to at least 38KB (38ul * 1024ul).  48KB is recommended.
 #endif
 
@@ -94,11 +94,26 @@ static uint32_t session_mobile = 1000;
  *   GLOBAL FUNCTIONS
  **********************/
 
+//// Insert this
+#include <stdio.h> ////
+
 void lv_demo_widgets(void)
 {
+    //// Note: PinePhone has width 720 pixels.
+    //// LVGL will set Display Size to Large, which looks really tiny.
+    //// Shouldn't this code depend on DPI? (267 DPI for PinePhone)
     if(LV_HOR_RES <= 320) disp_size = DISP_SMALL;
     else if(LV_HOR_RES < 720) disp_size = DISP_MEDIUM;
     else disp_size = DISP_LARGE;
+
+    //// Insert this: Print warning if font is missing
+    #undef LV_LOG_WARN
+    #define LV_LOG_WARN(s) puts(s)
+
+    //// Insert this: Change Display Size from Large to Medium, to make Widgets easier to tap
+    printf("Before: disp_size=%d\n", disp_size);
+    disp_size = DISP_MEDIUM;
+    printf("After: disp_size=%d\n", disp_size);
 
     font_large = LV_FONT_DEFAULT;
     font_normal = LV_FONT_DEFAULT;
@@ -118,14 +133,17 @@ void lv_demo_widgets(void)
 #endif
     }
     else if(disp_size == DISP_MEDIUM) {
-        tab_h = 45;
+        //// Change this: Increase Tab Height from 45 to 70, to make Tabs easier to tap
+        tab_h = 70;////
+        //// Previously: tab_h = 45;
 #if LV_FONT_MONTSERRAT_20
         font_large     = &lv_font_montserrat_20;
 #else
         LV_LOG_WARN("LV_FONT_MONTSERRAT_20 is not enabled for the widgets demo. Using LV_FONT_DEFAULT instead.");
 #endif
 #if LV_FONT_MONTSERRAT_14
-        font_normal    = &lv_font_montserrat_14;
+        //// Use the default font: Montserrat 20 instead of Montserrat 14
+        //// Previously: font_normal    = &lv_font_montserrat_14;
 #else
         LV_LOG_WARN("LV_FONT_MONTSERRAT_14 is not enabled for the widgets demo. Using LV_FONT_DEFAULT instead.");
 #endif
@@ -644,25 +662,27 @@ static void analytics_create(lv_obj_t * parent)
     lv_chart_set_next_value(chart2, ser3, lv_rand(10, 80));
     lv_chart_set_next_value(chart2, ser3, lv_rand(10, 80));
 
+    lv_meter_scale_t * scale;
     lv_meter_indicator_t * indic;
     meter1 = create_meter_box(parent, "Monthly Target", "Revenue: 63%", "Sales: 44%", "Costs: 58%");
     lv_obj_add_flag(lv_obj_get_parent(meter1), LV_OBJ_FLAG_FLEX_IN_NEW_TRACK);
-    lv_meter_set_scale_range(meter1, 0, 100, 270, 90);
-    lv_meter_set_scale_ticks(meter1, 0, 0, 0, lv_color_black());
+    scale = lv_meter_add_scale(meter1);
+    lv_meter_set_scale_range(meter1, scale, 0, 100, 270, 90);
+    lv_meter_set_scale_ticks(meter1, scale, 0, 0, 0, lv_color_black());
 
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_values(&a, 20, 100);
     lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
 
-    indic = lv_meter_add_arc(meter1, 15, lv_palette_main(LV_PALETTE_BLUE), 0);
+    indic = lv_meter_add_arc(meter1, scale, 15, lv_palette_main(LV_PALETTE_BLUE), 0);
     lv_anim_set_exec_cb(&a, meter1_indic1_anim_cb);
     lv_anim_set_var(&a, indic);
     lv_anim_set_time(&a, 4100);
     lv_anim_set_playback_time(&a, 2700);
     lv_anim_start(&a);
 
-    indic = lv_meter_add_arc(meter1, 15, lv_palette_main(LV_PALETTE_RED), -20);
+    indic = lv_meter_add_arc(meter1, scale, 15, lv_palette_main(LV_PALETTE_RED), -20);
     lv_anim_set_exec_cb(&a, meter1_indic2_anim_cb);
     lv_anim_set_var(&a, indic);
     lv_anim_set_time(&a, 2600);
@@ -670,7 +690,7 @@ static void analytics_create(lv_obj_t * parent)
     a.user_data = indic;
     lv_anim_start(&a);
 
-    indic = lv_meter_add_arc(meter1, 15, lv_palette_main(LV_PALETTE_GREEN), -40);
+    indic = lv_meter_add_arc(meter1, scale, 15, lv_palette_main(LV_PALETTE_GREEN), -40);
     lv_anim_set_exec_cb(&a, meter1_indic3_anim_cb);
     lv_anim_set_var(&a, indic);
     lv_anim_set_time(&a, 2800);
@@ -679,19 +699,20 @@ static void analytics_create(lv_obj_t * parent)
 
     meter2 = create_meter_box(parent, "Sessions", "Desktop: ", "Tablet: ", "Mobile: ");
     if(disp_size < DISP_LARGE) lv_obj_add_flag(lv_obj_get_parent(meter2), LV_OBJ_FLAG_FLEX_IN_NEW_TRACK);
-    lv_meter_set_scale_range(meter2, 0, 100, 360, 90);
-    lv_meter_set_scale_ticks(meter2, 0, 0, 0, lv_color_black());
+    scale = lv_meter_add_scale(meter2);
+    lv_meter_set_scale_range(meter2, scale, 0, 100, 360, 90);
+    lv_meter_set_scale_ticks(meter2, scale, 0, 0, 0, lv_color_black());
 
     static lv_meter_indicator_t * meter2_indic[3];
-    meter2_indic[0] = lv_meter_add_arc(meter2, 20, lv_palette_main(LV_PALETTE_RED), -10);
+    meter2_indic[0] = lv_meter_add_arc(meter2, scale, 20, lv_palette_main(LV_PALETTE_RED), -10);
     lv_meter_set_indicator_start_value(meter2, meter2_indic[0], 0);
     lv_meter_set_indicator_end_value(meter2, meter2_indic[0], 39);
 
-    meter2_indic[1] = lv_meter_add_arc(meter2, 30, lv_palette_main(LV_PALETTE_BLUE), 0);
+    meter2_indic[1] = lv_meter_add_arc(meter2, scale, 30, lv_palette_main(LV_PALETTE_BLUE), 0);
     lv_meter_set_indicator_start_value(meter2, meter2_indic[1], 40);
     lv_meter_set_indicator_end_value(meter2, meter2_indic[1], 69);
 
-    meter2_indic[2] = lv_meter_add_arc(meter2, 10, lv_palette_main(LV_PALETTE_GREEN), -20);
+    meter2_indic[2] = lv_meter_add_arc(meter2, scale, 10, lv_palette_main(LV_PALETTE_GREEN), -20);
     lv_meter_set_indicator_start_value(meter2, meter2_indic[2], 70);
     lv_meter_set_indicator_end_value(meter2, meter2_indic[2], 99);
 
@@ -702,7 +723,7 @@ static void analytics_create(lv_obj_t * parent)
 
     /*Add a special circle to the needle's pivot*/
     lv_obj_set_style_pad_hor(meter3, 10, 0);
-    lv_obj_set_style_size(meter3, 10, 10, LV_PART_INDICATOR);
+    lv_obj_set_style_size(meter3, 10, LV_PART_INDICATOR);
     lv_obj_set_style_radius(meter3, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(meter3, LV_OPA_COVER, LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(meter3, lv_palette_darken(LV_PALETTE_GREY, 4), LV_PART_INDICATOR);
@@ -710,38 +731,39 @@ static void analytics_create(lv_obj_t * parent)
     lv_obj_set_style_outline_width(meter3, 3, LV_PART_INDICATOR);
     lv_obj_set_style_text_color(meter3, lv_palette_darken(LV_PALETTE_GREY, 1), LV_PART_TICKS);
 
-    lv_meter_set_scale_range(meter3, 10, 60, 220, 360 - 220);
-    lv_meter_set_scale_ticks(meter3, 21, 3, 17, lv_color_white());
-    lv_meter_set_scale_major_ticks(meter3, 4, 4, 22, lv_color_white(), 15);
+    scale = lv_meter_add_scale(meter3);
+    lv_meter_set_scale_range(meter3, scale, 10, 60, 220, 360 - 220);
+    lv_meter_set_scale_ticks(meter3, scale, 21, 3, 17, lv_color_white());
+    lv_meter_set_scale_major_ticks(meter3, scale, 4, 4, 22, lv_color_white(), 15);
 
-    indic = lv_meter_add_arc(meter3, 10, lv_palette_main(LV_PALETTE_RED), 0);
+    indic = lv_meter_add_arc(meter3, scale, 10, lv_palette_main(LV_PALETTE_RED), 0);
     lv_meter_set_indicator_start_value(meter3, indic, 0);
     lv_meter_set_indicator_end_value(meter3, indic, 20);
 
-    indic = lv_meter_add_scale_lines(meter3, lv_palette_darken(LV_PALETTE_RED, 3), lv_palette_darken(LV_PALETTE_RED,
-                                                                                                     3), true, 0);
+    indic = lv_meter_add_scale_lines(meter3, scale, lv_palette_darken(LV_PALETTE_RED, 3), lv_palette_darken(LV_PALETTE_RED,
+                                                                                                            3), true, 0);
     lv_meter_set_indicator_start_value(meter3, indic, 0);
     lv_meter_set_indicator_end_value(meter3, indic, 20);
 
-    indic = lv_meter_add_arc(meter3, 12, lv_palette_main(LV_PALETTE_BLUE), 0);
+    indic = lv_meter_add_arc(meter3, scale, 12, lv_palette_main(LV_PALETTE_BLUE), 0);
     lv_meter_set_indicator_start_value(meter3, indic, 20);
     lv_meter_set_indicator_end_value(meter3, indic, 40);
 
-    indic = lv_meter_add_scale_lines(meter3, lv_palette_darken(LV_PALETTE_BLUE, 3),
+    indic = lv_meter_add_scale_lines(meter3, scale, lv_palette_darken(LV_PALETTE_BLUE, 3),
                                      lv_palette_darken(LV_PALETTE_BLUE, 3), true, 0);
     lv_meter_set_indicator_start_value(meter3, indic, 20);
     lv_meter_set_indicator_end_value(meter3, indic, 40);
 
-    indic = lv_meter_add_arc(meter3, 10, lv_palette_main(LV_PALETTE_GREEN), 0);
+    indic = lv_meter_add_arc(meter3, scale, 10, lv_palette_main(LV_PALETTE_GREEN), 0);
     lv_meter_set_indicator_start_value(meter3, indic, 40);
     lv_meter_set_indicator_end_value(meter3, indic, 60);
 
-    indic = lv_meter_add_scale_lines(meter3, lv_palette_darken(LV_PALETTE_GREEN, 3),
+    indic = lv_meter_add_scale_lines(meter3, scale, lv_palette_darken(LV_PALETTE_GREEN, 3),
                                      lv_palette_darken(LV_PALETTE_GREEN, 3), true, 0);
     lv_meter_set_indicator_start_value(meter3, indic, 40);
     lv_meter_set_indicator_end_value(meter3, indic, 60);
 
-    indic = lv_meter_add_needle_line(meter3, 4, lv_palette_darken(LV_PALETTE_GREY, 4), -25);
+    indic = lv_meter_add_needle_line(meter3, scale, 4, lv_palette_darken(LV_PALETTE_GREY, 4), -25);
 
     lv_obj_t * mbps_label = lv_label_create(meter3);
     lv_label_set_text(mbps_label, "-");
@@ -1220,6 +1242,7 @@ static void ta_event_cb(lv_event_t * e)
     else if(code == LV_EVENT_READY || code == LV_EVENT_CANCEL) {
         lv_obj_set_height(tv, LV_VER_RES);
         lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_state(ta, LV_STATE_FOCUSED);
         lv_indev_reset(NULL, ta);   /*To forget the last clicked object to make it focusable again*/
     }
 }
@@ -1337,7 +1360,7 @@ static void chart_event_cb(lv_event_t * e)
 
         /*Add the faded area before the lines are drawn */
         else if(dsc->part == LV_PART_ITEMS) {
-#if LV_USE_DRAW_MASKS
+#if LV_DRAW_COMPLEX
             /*Add  a line mask that keeps the area below the line*/
             if(dsc->p1 && dsc->p2) {
                 lv_draw_mask_line_param_t line_mask_param;
